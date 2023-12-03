@@ -76,7 +76,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 6
+  m_SortingOrder: 9
   m_Sprite: {fileID: 21300000, guid: 441204ce661f32640838942da466ce4d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -145,16 +145,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 151a2b0cd5c5c34459cf34374b838f7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _pattern: 1
-  _type: 2
-  _direction: {x: 0, y: 1, z: 0}
-  _waitTime: 2
+  shootPattern:
+  - _pattern: 1
+    _type: 2
+    _waitTime: 2
+    _timeBeforeShoot: 0.1
+    _numberOfShootWave: 3
+    _numberOfProjectilePerWave: 1
   _waitTimer: 0
-  _timeBeforeShoot: 0.2
   _shootTimer: 0
-  _numberOfShootWave: 3
-  _numberOfProjectilePerWave: 1
   _player: {fileID: 0}
+  _warning: {fileID: 0}
+  _lazer: {fileID: 0}
   _canFire: 0
 --- !u!114 &4748396366953014319
 MonoBehaviour:
@@ -168,11 +170,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1020d52e250b5554bb94cada59b7172e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _life: 2
+  _life: 10
   _score: 2
   _startLife: 10
   _speed: 5
   _type: 1
+  _targetPosition: {x: 0, y: 0, z: 0}
 --- !u!50 &2444134445920465244
 Rigidbody2D:
   serializedVersion: 4

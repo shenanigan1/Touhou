@@ -106,6 +106,7 @@ MonoBehaviour:
   _lifeTxt: {fileID: 0}
   _gameTimerTxt: {fileID: 0}
   _speed: 35
+  InvincibleTimeAspect: 0.2
 --- !u!50 &2355086430148922469
 Rigidbody2D:
   serializedVersion: 4
@@ -208,9 +209,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _type: 2
+  pattern: 0
   _direction: {x: 0, y: 1, z: 0}
   _timeBeforeShoot: 0.1
   _shootTimer: 0
+  _numberOfBulletShoot: 1
+  _positionOffset: {x: 0.4, y: 0, z: 0}
 --- !u!61 &2851988579548819144
 BoxCollider2D:
   m_ObjectHideFlags: 0

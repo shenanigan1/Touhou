@@ -28,9 +28,9 @@ public class EnemiesSpawner : MonoBehaviour
     private float _timeBetweenWave = 5;
 
     [SerializeField] private int numberOfObjectActive = 0;
+    private int newActive = 0;
     [SerializeField] private int[] numberOfEnemiesInWave;
     [SerializeField] private int numberOfEnemiesInWaves = 0;
-
 
     private bool _inNewWave = false;
 
@@ -50,17 +50,19 @@ public class EnemiesSpawner : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(numberOfObjectActive == 0 && numberOfEnemiesInWaves == 0 && !_inNewWave)
+
+        if(numberOfObjectActive <= 0 && numberOfEnemiesInWaves <= 0 && !_inNewWave)
         {
+            numberOfObjectActive = 0;
+            numberOfEnemiesInWaves = 0;
             StartCoroutine(NewWave());
         }
-        else if(numberOfObjectActive == 0 || _timerInWave < Time.time) 
+        else if(numberOfObjectActive <= 1 /*|| _timerInWave < Time.time*/) 
         {
             ContinueWave();
         }
@@ -101,14 +103,17 @@ public class EnemiesSpawner : MonoBehaviour
 
     private void ContinueWave()
     {
+        newActive = 0;
         if (numberOfEnemiesInWaves >= 10)
         {
             numberOfEnemiesInWaves -= 10;
             numberOfObjectActive += 10;
+            newActive += 10;
         }
         else if(numberOfEnemiesInWaves < 10 && numberOfEnemiesInWaves > 0 ) 
         {
             numberOfObjectActive += numberOfEnemiesInWaves;
+            newActive += numberOfEnemiesInWaves;
             numberOfEnemiesInWaves = 0;
         }
         else 
@@ -116,7 +121,7 @@ public class EnemiesSpawner : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < numberOfObjectActive; i++)
+        for (int i = 0; i < newActive; i++)
         {
             SpawnEnemy();
         }
@@ -135,9 +140,23 @@ public class EnemiesSpawner : MonoBehaviour
     private void SpawnEnemy()
     {
         GetRandPosInRect(SpawnRect);
-        _currentEnemy = PoolController.Instance.GetNew(GetRandomEnemy(), RandPos).GetComponent<EnemyController>();
-        GetRandPosInRect(FightRect);
-        _currentEnemy.SetTargetPosition = RandPos;
+        _currentEnemy = PoolController.Instance.GetNew(GetRandomEnemy(), RandPos)?.GetComponent<EnemyController>();
+
+        if (_currentEnemy != null)
+        {
+            GetRandPosInRect(FightRect);
+            if (_currentEnemy._type != Type.Boss)
+                _currentEnemy.SetTargetPosition = RandPos;
+            else
+                _currentEnemy.SetTargetPosition = new Vector3(-2.5f, 3.8f, 0);
+
+        }
+        else
+        {
+            numberOfObjectActive -= 1;
+        }
+
+
 
     }
 
@@ -169,11 +188,11 @@ public class EnemiesSpawner : MonoBehaviour
             case 1:
                 return Type.Ennemies2;
             case 2:
-                return Type.Ennemies3;
+                return Type.Boss;
         }
         return Type.Ennemies1;
     }
 
-    public void EnemyDead() => numberOfObjectActive--;
+    public void EnemyDead() => numberOfObjectActive -= 1;
     public void AddScore(int score) => _playerObj.score += score;
 }
