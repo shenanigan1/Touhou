@@ -3,20 +3,25 @@ using UnityEngine;
 
 public class EnemyController : MonoBehaviour
 {
-    [SerializeField] private int _life = 10;
-    [SerializeField] private int _score = 10;
-    [SerializeField] private int _startLife = 10;
+    private int _life;
+    [SerializeField] private int _score;
+    [SerializeField] private int _startLife;
     [SerializeField] private float _speed = 10;
+
+    private Shoot_script _player;
     public Type _type;
-    private Vector3 _targetPosition = new();
+    [SerializeField]private Vector3 _targetPosition = new();
     private Transform _transform;
 
     private ShootEnnemies _shoot;
     private bool _isTouch = false;
 
+    private string[] _tagEffectTab = new string[4] { "LifeBonus", "BulletBonus", "Pattern1Bonus", "Pattern2Bonus" };
+
     // Start is called before the first frame update
     void Awake()
     {
+        _player = GameObject.FindGameObjectWithTag("Player").GetComponent<Shoot_script>();
         _transform = gameObject.GetComponent<Transform>();
         _shoot = GetComponent<ShootEnnemies>();
     }   
@@ -53,7 +58,7 @@ public class EnemyController : MonoBehaviour
             VerifLife();
             PoolController.Instance.Suppr(collision.gameObject, collision.gameObject.GetComponent<Bullet_script>().GetHisType);
         }
-        else if (collision.gameObject.CompareTag("Player"))
+        else if (collision.gameObject.CompareTag("Player") && _type != Type.Boss)
         {
             _life = 0;
             VerifLife();
@@ -66,9 +71,23 @@ public class EnemyController : MonoBehaviour
         {
             _isTouch = true;
             EnemiesSpawner.Instance.EnemyDead();
+            Debug.Log("Death Of :: " + gameObject);
             PoolController.Instance.Suppr(gameObject, _type);
             PoolController.Instance.GetNew(Type.Explosion, _transform.position);
             EnemiesSpawner.Instance.AddScore(_score);
+            SpawnEffect();
+        }
+    }
+
+    private void SpawnEffect()
+    {
+        int rand = Random.Range(0, 101);
+        if(rand < 10) 
+        {
+            rand = Random.Range(0, _tagEffectTab.Length);
+            if(rand == 0 && EnemiesSpawner.Instance._playerObj.life > 5) { return; }
+            if(rand == 1 && _player.GetNumberOfBullet > 5 ) { return; }
+            PoolController.Instance.GetNew(Type.Bonus, _transform.position, _tagEffectTab[rand]);
         }
     }
 

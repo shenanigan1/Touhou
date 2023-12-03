@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: PlayerObj
   m_EditorClassIdentifier: 
   score: 0
-  life: 994
+  life: 3
   wave: 1
-  timer: 19.792736
+  timer: 234.68

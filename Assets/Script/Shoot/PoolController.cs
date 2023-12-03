@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 
 public enum Type 
 {
-    Ennemies1, Ennemies2, Ball, LittleLine, Ennemies3, Explosion
+    Ennemies1, Ennemies2, Ball, CurveBall, Ennemies3, Explosion, Boss, Bonus
 
 }
 public class PoolController : MonoBehaviour
@@ -38,10 +37,12 @@ public class PoolController : MonoBehaviour
     private void Initialize()
     {
         _pools[Type.Ball] = new Queue<GameObject>();
-        _pools[Type.LittleLine] = new Queue<GameObject>();
+        _pools[Type.CurveBall] = new Queue<GameObject>();
         _pools[Type.Ennemies1] = new Queue<GameObject>();
         _pools[Type.Ennemies2] = new Queue<GameObject>();
         _pools[Type.Explosion] = new Queue<GameObject>();
+        _pools[Type.Boss] = new Queue<GameObject>();
+        _pools[Type.Bonus] = new Queue<GameObject>();
 
         if (_prefabs.Count != _numberOfPrefabInstance.Count)
         {
@@ -71,10 +72,15 @@ public class PoolController : MonoBehaviour
 
     public GameObject GetNew(Type T, Vector3 shooter_transform)
     {
-        GameObject go = _pools[T].Dequeue();
-        go.transform.position = shooter_transform;
-        go.SetActive(true);
-        return go;
+        if (_pools[T].Count > 0)
+        {
+            GameObject go = _pools[T].Dequeue();
+            go.transform.position = shooter_transform;
+            go.SetActive(true);
+            return go;
+        }
+        return null;
+
     }
 
     public GameObject GetNew(Type T, Vector3 shooter_transform, String _tag)
