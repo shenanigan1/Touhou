@@ -72,7 +72,6 @@ public class PlayerController : MonoBehaviour
 
     private void VerifMovement()
     {
-        Debug.Log(_movement);
         if ((_movement.x > 0 && _transform.position.x > _RightDown.x) || (_movement.x < 0 && _transform.position.x < _LeftUp.x))
         {
             ReplacePlayerInX();
@@ -118,7 +117,6 @@ public class PlayerController : MonoBehaviour
         {
             _fire = !_fire;
             _shootScript.IsFire = _fire;
-            Debug.Log(_fire);
         }
  
     }
@@ -128,6 +126,8 @@ public class PlayerController : MonoBehaviour
         if((collision.CompareTag("EnemiesBullet") || collision.CompareTag("Enemy")) && !_invicible)
         {
             _playerObj.life--;
+            _shootScript.ResetBall();
+            _shootScript.ResetSpeed();
             StartCoroutine(Invincible());
             IsDead();
         }
@@ -167,4 +167,6 @@ public class PlayerController : MonoBehaviour
     }
 
     public Vector2 GetMovement() => _movement;
+
+    public void AddLife(int add = 1) => _playerObj.life += add;
 }
