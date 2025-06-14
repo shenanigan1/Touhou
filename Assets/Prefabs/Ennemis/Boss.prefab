@@ -49,37 +49,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 151a2b0cd5c5c34459cf34374b838f7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shootPattern:
-  - _pattern: 0
-    _type: 2
-    _waitTime: 2
-    _timeBeforeShoot: 0.3
-    _numberOfShootWave: 5
-    _numberOfProjectilePerWave: 50
-  - _pattern: 1
-    _type: 2
-    _waitTime: 2
-    _timeBeforeShoot: 0.3
-    _numberOfShootWave: 5
-    _numberOfProjectilePerWave: 5
-  - _pattern: 2
-    _type: 2
-    _waitTime: 4.1
-    _timeBeforeShoot: 0.3
-    _numberOfShootWave: 1
-    _numberOfProjectilePerWave: 1
-  - _pattern: 4
-    _type: 3
-    _waitTime: 6
-    _timeBeforeShoot: 0.5
-    _numberOfShootWave: 20
-    _numberOfProjectilePerWave: 12
-  _waitTimer: 0
-  _shootTimer: 0
-  _player: {fileID: 0}
-  _warning: {fileID: 0}
-  _lazer: {fileID: 1469148091569936173}
-  _canFire: 0
+  shootPatterns:
+  - pattern: 2
+    type: 6
+    waitTime: 10
+    timeBeforeShoot: 10
+    numberOfShootWave: 10
+    numberOfProjectilePerWave: 10
+  player: {fileID: 0}
+  warning: {fileID: 0}
+  lazer: {fileID: 0}
 --- !u!114 &188202049807305516
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -92,7 +71,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1020d52e250b5554bb94cada59b7172e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _life: 200000
   _score: 10
   _startLife: 200000
   _speed: 10

@@ -719,105 +719,86 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7994daccbeee53645a50417de390bfac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerObj: {fileID: 11400000, guid: 5cf16143dee06e74697facae01d6972a, type: 2}
-  SpawnRect: {fileID: 819574758}
-  FightRect: {fileID: 1240256666}
-  _numberOfEnemy1PerWave:
+  PlayerObj: {fileID: 11400000, guid: 5cf16143dee06e74697facae01d6972a, type: 2}
+  spawnRect: {fileID: 819574758}
+  fightRect: {fileID: 1240256666}
+  numberOfEnemy1PerWave:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
       value: 0
-      inSlope: 2
-      outSlope: 2
+      inSlope: 1
+      outSlope: 1
       tangentMode: 34
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.33333334
+      outWeight: 0
     - serializedVersion: 3
-      time: 100
-      value: 200
-      inSlope: 2
-      outSlope: 2
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
       tangentMode: 34
       weightedMode: 0
-      inWeight: 0.33333334
+      inWeight: 0
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  _numberOfEnemy2PerWave:
+  numberOfEnemy2PerWave:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
       value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 69
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 9.99
-      value: 0
-      inSlope: -0
-      outSlope: 1.9997778
-      tangentMode: 69
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 100
-      value: 180
-      inSlope: 1.9997778
-      outSlope: 1.9997778
+      inSlope: 1
+      outSlope: 1
       tangentMode: 34
       weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  _numberOfEnemy3PerWave:
+  numberOfEnemy3PerWave:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
       value: 0
-      inSlope: 0
-      outSlope: 0
+      inSlope: 1
+      outSlope: 1
       tangentMode: 34
       weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
+      inWeight: 0
+      outWeight: 0
     - serializedVersion: 3
-      time: 19.99
-      value: 0
-      inSlope: -0
-      outSlope: 1.2345687
-      tangentMode: 69
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 20.8
+      time: 1
       value: 1
-      inSlope: 1.99975
-      outSlope: 1.99975
-      tangentMode: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
       weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
+      inWeight: 0
+      outWeight: 0
     m_PreInfinity: 2
-    m_PostInfinity: 1
+    m_PostInfinity: 2
     m_RotationOrder: 4
-  numberOfObjectActive: 0
-  numberOfEnemiesInWave: 
-  numberOfEnemiesInWaves: 0
-  _scoreTxt: {fileID: 9195582790585804922}
-  _waveTxt: {fileID: 3080289844684005405}
-  _EnemiesCanBeInvoke: 
+  scoreText: {fileID: 9195582790585804922}
+  waveText: {fileID: 3080289844684005405}
+  timeInWave: 10
+  timeBetweenWaves: 5
+  maxEnemiesSpawnAtOnce: 10
 --- !u!114 &350148064
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -832,7 +813,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PauseMenu: {fileID: 8844382299321821727}
   CreditMenu: {fileID: 0}
-  _MainMenu: {fileID: 0}
+  MainMenu: {fileID: 349027232}
 --- !u!1 &359168058
 GameObject:
   m_ObjectHideFlags: 0
@@ -1030,7 +1011,6 @@ MonoBehaviour:
   mapSizeY: 20.48
   firstPlaneRelativeOffset: 0
   lastPlaneRelativeOffset: 0.9
-  planeOfsset: []
 --- !u!61 &409467118
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3836,11 +3816,23 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 5235835741591166049}
     - target: {fileID: 2071119509493540718, guid: b62fc88cd24f8664a8aa9270da753569, type: 3}
+      propertyPath: lifeText
+      value: 
+      objectReference: {fileID: 5235835741591166049}
+    - target: {fileID: 2071119509493540718, guid: b62fc88cd24f8664a8aa9270da753569, type: 3}
+      propertyPath: playerObj
+      value: 
+      objectReference: {fileID: 11400000, guid: 5cf16143dee06e74697facae01d6972a, type: 2}
+    - target: {fileID: 2071119509493540718, guid: b62fc88cd24f8664a8aa9270da753569, type: 3}
       propertyPath: MovementRect
       value: 
       objectReference: {fileID: 289263548}
     - target: {fileID: 2071119509493540718, guid: b62fc88cd24f8664a8aa9270da753569, type: 3}
       propertyPath: _gameTimerTxt
+      value: 
+      objectReference: {fileID: 362249775947575888}
+    - target: {fileID: 2071119509493540718, guid: b62fc88cd24f8664a8aa9270da753569, type: 3}
+      propertyPath: gameTimerText
       value: 
       objectReference: {fileID: 362249775947575888}
     - target: {fileID: 3958085002963501787, guid: b62fc88cd24f8664a8aa9270da753569, type: 3}

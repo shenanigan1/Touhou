@@ -1,92 +1,119 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using static UnityEngine.GraphicsBuffer;
 
 namespace Mkey
 {
     /// <summary>
-    /// Create parallax effect along X-axe
+    /// Creates a parallax scrolling effect along the X-axis.
+    /// Supports infinite scrolling planes.
     /// </summary>
     public class SpriteParallax : MonoBehaviour
     {
-        [SerializeField] private float speedParralax = 0;
-        [SerializeField]
-        private ParallaxPlane[] planes;
-        [SerializeField]
-        private bool infiniteMap = true;
-        [SerializeField]
-        private float mapSizeX = 20.48f;
-        [SerializeField]
-        private float mapSizeY = 20.48f;
-        [SerializeField]
-        private float firstPlaneRelativeOffset = 0;
-        [SerializeField]
-        private float lastPlaneRelativeOffset = 0.9f;
+        [Header("Parallax Settings")]
+        [Tooltip("Base speed of parallax scrolling.")]
+        [SerializeField] private float speedParralax = 0f;
+
+        [Tooltip("Array of parallax planes to move.")]
+        [SerializeField] private ParallaxPlane[] planes;
+
+        [Tooltip("Enable infinite scrolling for planes.")]
+        [SerializeField] private bool infiniteMap = true;
+
+        [Tooltip("Width of the infinite map (used if infiniteMap is true).")]
+        [SerializeField] private float mapSizeX = 20.48f;
+
+        [Tooltip("Height of the infinite map (used if infiniteMap is true).")]
+        [SerializeField] private float mapSizeY = 20.48f;
+
+        [Tooltip("Relative offset for the first plane (0 to 1).")]
+        [SerializeField] private float firstPlaneRelativeOffset = 0f;
+
+        [Tooltip("Relative offset for the last plane (0 to 1).")]
+        [SerializeField] private float lastPlaneRelativeOffset = 0.9f;
 
         private Transform m_Camera;
-        private Vector3 camPos;     // camera position
-        private Vector3 oldCamPos;  // old camera position
-        private ParallaxPlane plane;
-        private Vector3 planePos;
-        private Vector2 camOffset;
-        private int length = 0;
-        
-        [SerializeField]
-        private float[] planeOfsset;
+        private Vector3 camPos;      // Current camera position
+        private Vector3 oldCamPos;   // Previous frame camera position
+        private int length = 0;      // Number of planes
 
+        private float[] planeOffset;
+
+        // These lists are declared but never used - consider removing or implementing later
         private List<ParallaxPlane> InfiniteGroup;
         private List<ParallaxPlane>[] InfiniteMap;
 
+        /// <summary>
+        /// Validate serialized fields in editor to ensure they stay within valid ranges.
+        /// </summary>
         private void OnValidate()
         {
             firstPlaneRelativeOffset = Mathf.Clamp01(firstPlaneRelativeOffset);
             lastPlaneRelativeOffset = Mathf.Clamp01(lastPlaneRelativeOffset);
         }
 
-        void Start()
+        /// <summary>
+        /// Initialize camera reference, plane offsets, and infinite map setup.
+        /// </summary>
+        private void Start()
         {
             m_Camera = Camera.main.transform;
             camPos = m_Camera.position;
             oldCamPos = camPos;
+
             length = planes.Length;
 
-            //cache plane offsets
+            // Clamp offsets to [0,1]
             firstPlaneRelativeOffset = Mathf.Clamp01(firstPlaneRelativeOffset);
             lastPlaneRelativeOffset = Mathf.Clamp01(lastPlaneRelativeOffset);
-            float dKP = Mathf.Abs(lastPlaneRelativeOffset - firstPlaneRelativeOffset) / (length - 1);
-            planeOfsset = new float[length];
 
+            // Calculate offset step between planes
+            float offsetStep = Mathf.Abs(lastPlaneRelativeOffset - firstPlaneRelativeOffset) / (length - 1);
+            planeOffset = new float[length];
+
+            // Cache relative offsets for each plane
             for (int i = 0; i < length; i++)
             {
-                plane = planes[i];
-                if (!plane) continue;
-                planeOfsset[i] = firstPlaneRelativeOffset + i * dKP;
+                var plane = planes[i];
+                if (plane == null) continue;
+
+                planeOffset[i] = firstPlaneRelativeOffset + i * offsetStep;
             }
 
+            // If infinite scrolling is enabled, initialize planes accordingly
             if (infiniteMap)
             {
                 for (int i = 0; i < length; i++)
                 {
-                    if (planes[i])
+                    if (planes[i] != null)
                         planes[i].CreateInfinitePlane(new Vector2(mapSizeX, mapSizeY), camPos);
                 }
             }
         }
 
-        void Update()
+        /// <summary>
+        /// Update parallax effect each frame based on camera movement.
+        /// </summary>
+        private void Update()
         {
             camPos = m_Camera.position;
-            camOffset = camPos - oldCamPos;
+            Vector3 camOffset = camPos - oldCamPos;
 
             for (int i = 0; i < length; i++)
             {
-                plane = planes[i];
-                if (!plane) continue;
-                //plane.transform.Translate(new Vector3(camOffset.x * planeOfsset[i], camOffset.y * planeOfsset[i] + speedParralax, 0), Space.World);
-                plane.transform.position = Vector3.Lerp(plane.transform.position, plane.transform.position + new Vector3(camOffset.x * planeOfsset[i], camOffset.y * planeOfsset[i] + speedParralax, 0), 1.0f * Time.deltaTime);
+                var plane = planes[i];
+                if (plane == null) continue;
 
-                if (infiniteMap) plane.UpdateInfinitePlane(camPos);
+                // Calculate movement vector for this plane
+                Vector3 movement = new Vector3(camOffset.x * planeOffset[i], camOffset.y * planeOffset[i] + speedParralax, 0);
+
+                // Smoothly move plane towards target position based on camera offset
+                plane.transform.position = Vector3.Lerp(plane.transform.position, plane.transform.position + movement, Time.deltaTime);
+
+                // Update infinite plane if enabled
+                if (infiniteMap)
+                    plane.UpdateInfinitePlane(camPos);
             }
+
             oldCamPos = camPos;
         }
     }

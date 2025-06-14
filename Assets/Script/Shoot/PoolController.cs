@@ -2,99 +2,143 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-
-public enum Type 
+/// <summary>
+/// Enum for different poolable object types.
+/// </summary>
+public enum Type
 {
     Ennemies1, Ennemies2, Ball, CurveBall, Ennemies3, Explosion, Boss, Bonus
-
 }
+
+/// <summary>
+/// Manages object pooling for various prefab types to improve performance.
+/// </summary>
 public class PoolController : MonoBehaviour
 {
     public static PoolController Instance;
 
+    // Dictionary to hold queues of pooled objects by type
     private Dictionary<Type, Queue<GameObject>> _pools = new();
 
+    // Prefabs to instantiate and pool (set in inspector)
     public List<GameObject> _prefabs = new();
+
+    // Number of instances to create per prefab (set in inspector)
     public List<int> _numberOfPrefabInstance = new();
 
     private void Awake()
     {
-        if (Instance == null) { Instance = this; }
-        Initialize();
-    }
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        // Singleton pattern enforcement
+        if (Instance == null)
+        {
+            Instance = this;
+            Initialize();
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
+    /// <summary>
+    /// Initializes pools by instantiating objects and adding them to their respective queues.
+    /// </summary>
     private void Initialize()
     {
-        _pools[Type.Ball] = new Queue<GameObject>();
-        _pools[Type.CurveBall] = new Queue<GameObject>();
-        _pools[Type.Ennemies1] = new Queue<GameObject>();
-        _pools[Type.Ennemies2] = new Queue<GameObject>();
-        _pools[Type.Explosion] = new Queue<GameObject>();
-        _pools[Type.Boss] = new Queue<GameObject>();
-        _pools[Type.Bonus] = new Queue<GameObject>();
-
-        if (_prefabs.Count != _numberOfPrefabInstance.Count)
+        // Initialize queues for all Types
+        foreach (Type type in Enum.GetValues(typeof(Type)))
         {
-            throw new Exception("The two list Prefab & NumberOfPrefabInstance are not equal Please Fix It");
+            _pools[type] = new Queue<GameObject>();
         }
 
-        for(int i = 0; i < _prefabs.Count; i++) 
+        // Validate lists are of same length
+        if (_prefabs.Count != _numberOfPrefabInstance.Count)
         {
-            for(int j = 0; j < _numberOfPrefabInstance[i];  j++)
+            throw new Exception("Prefab and NumberOfPrefabInstance lists must be of equal length.");
+        }
+
+        // Instantiate and enqueue the requested number of instances per prefab
+        for (int i = 0; i < _prefabs.Count; i++)
+        {
+            GameObject prefab = _prefabs[i];
+            int count = _numberOfPrefabInstance[i];
+
+            for (int j = 0; j < count; j++)
             {
-                GameObject go = Instantiate<GameObject>(_prefabs[i]);
-                if(go.TryGetComponent<Bullet_script>(out Bullet_script Bs))
-                    _pools[Bs.GetHisType].Enqueue(go);
-
-                else if(go.TryGetComponent<EnemyController>(out EnemyController Es))
-                    _pools[Es.GetHisType].Enqueue(go);
-
-                else if(go.TryGetComponent<ExplosionScript>(out ExplosionScript Exs))
-                    _pools[Type.Explosion].Enqueue(go);
+                GameObject go = Instantiate(prefab);
                 go.SetActive(false);
-                
-                
+
+                // Determine the pool type from attached scripts
+                if (go.TryGetComponent<Bullet_script>(out Bullet_script bullet))
+                {
+                    _pools[bullet.GetHisType].Enqueue(go);
+                }
+                else if (go.TryGetComponent<EnemyController>(out EnemyController enemy))
+                {
+                    _pools[enemy.GetHisType].Enqueue(go);
+                }
+                else if (go.TryGetComponent<ExplosionScript>(out ExplosionScript _))
+                {
+                    _pools[Type.Explosion].Enqueue(go);
+                }
+                else
+                {
+                    Debug.LogWarning($"Prefab '{prefab.name}' does not have a recognized component to determine pool type.");
+                }
             }
         }
     }
 
-
-    public GameObject GetNew(Type T, Vector3 shooter_transform)
+    /// <summary>
+    /// Retrieves an object from the pool of the specified type and sets its position.
+    /// Returns null if no object is available.
+    /// </summary>
+    public GameObject GetNew(Type type, Vector3 position)
     {
-        if (_pools[T].Count > 0)
+        if (_pools.TryGetValue(type, out Queue<GameObject> pool) && pool.Count > 0)
         {
-            GameObject go = _pools[T].Dequeue();
-            go.transform.position = shooter_transform;
+            GameObject go = pool.Dequeue();
+            go.transform.position = position;
             go.SetActive(true);
             return go;
         }
-        return null;
-
+        else
+        {
+            Debug.LogWarning($"Pool for type '{type}' is empty or does not exist.");
+            return null;
+        }
     }
 
-    public GameObject GetNew(Type T, Vector3 shooter_transform, String _tag)
+    /// <summary>
+    /// Retrieves an object from the pool of the specified type, sets its position and tag.
+    /// </summary>
+    public GameObject GetNew(Type type, Vector3 position, string tag)
     {
-        GameObject go = _pools[T].Dequeue();
-        go.transform.position = shooter_transform;
-        go.tag = _tag;
-        go.SetActive(true);
+        GameObject go = GetNew(type, position);
+        if (go != null)
+        {
+            go.tag = tag;
+        }
         return go;
     }
 
-    public void Suppr(GameObject go, Type T)
+    /// <summary>
+    /// Returns the specified GameObject back to its pool and deactivates it.
+    /// </summary>
+    public void Suppr(GameObject go, Type type)
     {
+        if (go == null) return;
+
         go.SetActive(false);
-        _pools[T].Enqueue(go);
+
+        if (_pools.TryGetValue(type, out Queue<GameObject> pool))
+        {
+            pool.Enqueue(go);
+        }
+        else
+        {
+            Debug.LogWarning($"Trying to return GameObject to a non-existent pool of type '{type}'.");
+            Destroy(go); // Optionally destroy if no pool exists
+        }
     }
 }

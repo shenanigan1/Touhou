@@ -2,40 +2,69 @@
 
 namespace Mkey
 {
+    /// <summary>
+    /// Enum describing different camera tracking modes.
+    /// </summary>
     public enum TrackMode { Player, Mouse, Gyroscope, Keyboard, Touch }
+
+    /// <summary>
+    /// CameraFollow handles smooth camera movement tracking the player, mouse, gyroscope, keyboard or touch input.
+    /// Supports clamping camera position within a defined 2D box.
+    /// </summary>
     public class CameraFollow : MonoBehaviour
     {
-        //player follow options
+        // Margins to define how far the player can move before the camera starts following
         private Vector2 margin;
+        // Smoothness factor for camera movement
         private Vector2 smooth;
 
+        // Current tracking mode for the camera
         public TrackMode track = TrackMode.Touch;
+
+        // Enables or disables clamping of the camera position within the ClampField bounds
         public bool ClampPosition;
-        public BoxCollider2D ClampField;  // camera motion field
+
+        // BoxCollider2D defining camera movement boundaries if ClampPosition is enabled
+        public BoxCollider2D ClampField;
 
         [SerializeField]
         private GameObject player;
+
         private Camera m_camera;
+
+        // Camera orthographic sizes for clamping calculations
         private float camVertSize;
         private float camHorSize;
+
+        // Smoothed acceleration vector for gyroscope or mouse tracking
         private Vector3 acceleration;
 
-        [SerializeField] private float speedMultiplicator = 1;
-        [SerializeField] private bool InGame = true;
+        [SerializeField]
+        private float speedMultiplicator = 1f;
 
-        public float ScreenRatio
-        {
-            get { return ((float)Screen.width / Screen.height); }
-        }
+        [SerializeField]
+        private bool InGame = true;
 
+        /// <summary>
+        /// Returns the current screen width/height ratio.
+        /// </summary>
+        public float ScreenRatio => (float)Screen.width / Screen.height;
+
+        /// <summary>
+        /// Singleton instance for easy global access.
+        /// </summary>
         public static CameraFollow Instance;
 
-        #region regular
-        void Awake()
+        #region Unity Callbacks
+
+        private void Awake()
         {
-            if(!player)  player = GameObject.FindGameObjectWithTag("Player");
-            margin = new Vector2(3, 3);
-            smooth = new Vector2(1, 1);
+            // Auto-assign player if not set via inspector
+            if (!player)
+                player = GameObject.FindGameObjectWithTag("Player");
+
+            margin = new Vector2(3f, 3f);
+            smooth = new Vector2(1f, 1f);
 
             m_camera = GetComponent<Camera>();
             Instance = this;
@@ -43,10 +72,11 @@ namespace Mkey
 
         private void Start()
         {
-            //TouchPad.Instance.ScreenDragEvent += TrackTouchDrag;
+            // Subscribe to touch drag event if implemented elsewhere
+            // TouchPad.Instance.ScreenDragEvent += TrackTouchDrag;
         }
 
-        void LateUpdate()
+        private void LateUpdate()
         {
             switch (track)
             {
@@ -62,166 +92,154 @@ namespace Mkey
                 case TrackMode.Keyboard:
                     TrackKeyboard();
                     break;
-
+                    // Touch handled by event
             }
         }
 
-        private void OnDesctroy()
+        private void OnDestroy()
         {
-            TouchPad.Instance.ScreenDragEvent -= TrackTouchDrag;
+            // Unsubscribe from touch drag event to avoid memory leaks
+            // TouchPad.Instance.ScreenDragEvent -= TrackTouchDrag;
         }
-        #endregion regular
+
+        #endregion
+
+        #region Tracking Implementations
 
         /// <summary>
-        /// Return true if Player out of X margin
+        /// Checks if player is out of horizontal margin.
         /// </summary>
-        private bool OutOfXMargin
-        {
-            get { return Mathf.Abs(transform.position.x - player.transform.position.x) > margin.x; }
-        }
+        private bool OutOfXMargin => Mathf.Abs(transform.position.x - player.transform.position.x) > margin.x;
 
         /// <summary>
-        /// Return true if Player out of Y margin
+        /// Checks if player is out of vertical margin.
         /// </summary>
-        private bool OutOfYMargin
-        {
-            get
-            {
-                return Mathf.Abs(transform.position.y - player.transform.position.y) > margin.y;
-            }
-        }
+        private bool OutOfYMargin => Mathf.Abs(transform.position.y - player.transform.position.y) > margin.y;
 
         /// <summary>
-        /// Camera follow mouse cursor position
-        /// </summary>
-        private void TrackMouseMotion()
-        {
-            acceleration = Vector3.Lerp(acceleration, Camera.main.ScreenToViewportPoint(Input.mousePosition), Time.deltaTime);
-            Vector3 target = transform.position + new Vector3(acceleration.x - 0.5f, acceleration.y - 0.5f, 0);
-            transform.position = Vector3.Lerp(transform.position, target, 5f * Time.deltaTime);
-            ClampCameraPosInField();
-        }
-
-        /// <summary>
-        /// Camera follow Player Gameobject position
+        /// Tracks the player with smooth lerp if they move out of margin.
         /// </summary>
         private void TrackPlayer()
         {
             if (!player)
-            {
                 return;
-            }
+
             float targetX = transform.position.x;
             float targetY = transform.position.y;
 
             if (OutOfXMargin)
-                targetX = Mathf.Lerp( player.transform.position.x, transform.position.x, smooth.x * Time.deltaTime);
+                targetX = Mathf.Lerp(player.transform.position.x, transform.position.x, smooth.x * Time.deltaTime);
 
             if (OutOfYMargin)
-                targetY = Mathf.Lerp( player.transform.position.y, transform.position.y, smooth.y * Time.deltaTime);
+                targetY = Mathf.Lerp(player.transform.position.y, transform.position.y, smooth.y * Time.deltaTime);
+
             transform.position = new Vector3(targetX, targetY, transform.position.z);
+
             ClampCameraPosInField();
         }
 
         /// <summary>
-        /// Camera rotate to mouse cursor position
+        /// Tracks the mouse cursor movement by smoothing camera position accordingly.
         /// </summary>
-        private void TrackMouseRotation() //http://answers.unity3d.com/questions/149022/how-to-make-camera-move-with-the-mouse-cursors.html?childToView=1097525#answer-1097525
+        private void TrackMouseMotion()
         {
-            if (!m_camera) return;
-            float sensitivity = 0.00001f;
-            Vector3 vp = m_camera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, m_camera.nearClipPlane));
-            vp.x -= 0.5f;
-            vp.y -= 0.5f;
-            vp.x *= sensitivity;
-            vp.y *= sensitivity;
-            vp.x += 0.5f;
-            vp.y += 0.5f;
-            Vector3 sp = m_camera.ViewportToScreenPoint(vp);
-            Vector3 v = m_camera.ScreenToWorldPoint(sp);
-            transform.LookAt(v, Vector3.up);
+            acceleration = Vector3.Lerp(acceleration, Camera.main.ScreenToViewportPoint(Input.mousePosition), Time.deltaTime);
+
+            Vector3 target = transform.position + new Vector3(acceleration.x - 0.5f, acceleration.y - 0.5f, 0f);
+
+            transform.position = Vector3.Lerp(transform.position, target, 5f * Time.deltaTime);
+
+            ClampCameraPosInField();
         }
 
         /// <summary>
-        /// Clamp camera position in BoxCollider2D rect. Max and Min camera position dependet from collider size, camera size and screen ratio;
-        /// </summary>
-        private void ClampCameraPosInField()
-        {
-            if (ClampPosition)
-            {
-                if (!ClampField) return;
-
-                camVertSize = m_camera.orthographicSize;
-                camHorSize = camVertSize * ScreenRatio;
-
-                Vector2 m_bsize = ClampField.bounds.size / 2.0f;
-                m_bsize -= new Vector2(camHorSize, camVertSize);
-
-                Vector3 tFieldPosition = ClampField.transform.position;
-
-                float maxY = tFieldPosition.y + m_bsize.y;
-                float minY = tFieldPosition.y - m_bsize.y;
-
-                float maxX = tFieldPosition.x + m_bsize.x;
-                float minX = tFieldPosition.x - m_bsize.x;
-
-                float posX = Mathf.Clamp(transform.position.x, minX, maxX);
-                float posY = Mathf.Clamp(transform.position.y, minY, maxY);
-
-                transform.position = new Vector3(posX, posY, transform.position.z);
-            }
-        }
-
-        /// <summary>
-        /// Camera follow gyroscope acceleration
+        /// Tracks the gyroscope acceleration input, smoothing camera movement.
         /// </summary>
         private void TrackGyroscope()
         {
-            Vector3 dir = Vector3.zero;
-            dir.x = Input.acceleration.x;
-            dir.y = Input.acceleration.y;
-            if (dir.sqrMagnitude > 1) dir.Normalize();
-            acceleration = dir;// acceleration = Vector3.Lerp(acceleration, dir, Time.deltaTime);
-            Vector3 target = transform.position + new Vector3(acceleration.x, acceleration.y, 0);
+            Vector3 dir = new Vector3(Input.acceleration.x, Input.acceleration.y, 0f);
+
+            if (dir.sqrMagnitude > 1f)
+                dir.Normalize();
+
+            acceleration = dir;
+
+            Vector3 target = transform.position + new Vector3(acceleration.x, acceleration.y, 0f);
+
             transform.position = Vector3.Lerp(transform.position, target, 1f * Time.deltaTime);
+
             ClampCameraPosInField();
         }
 
         /// <summary>
-        /// Camera follow touch drag direction
+        /// Tracks keyboard input movement and moves camera accordingly.
+        /// Assumes player has a PlayerController component with GetMovement method.
         /// </summary>
-        /// <param name="tpea"></param>
-        private void TrackTouchDrag(TouchPadEventArgs tpea)
+        private void TrackKeyboard()
         {
-            if (track == TrackMode.Touch)
-            {
-                Vector3 dir = tpea.DragDirection;
-                // dir.x = -tpea.DragDirection.x;
-                // dir.y = -tpea.DragDirection.y;
+            if (!InGame || player == null)
+                return;
 
-                Vector3 target = transform.position + new Vector3(dir.x, dir.y, 0);
-                transform.position = Vector3.Lerp(transform.position, target, 0.02f * Time.fixedDeltaTime);
-                ClampCameraPosInField();
-            }
+            Vector3 dir = player.GetComponent<PlayerController>().GetMovement();
+
+            // Only vertical movement affects camera here, adjust if needed
+            Vector3 target = transform.position + new Vector3(0f, -dir.y * speedMultiplicator, 0f);
+
+            transform.position = Vector3.Lerp(transform.position, target, 1f * Time.deltaTime);
+
+            ClampCameraPosInField();
         }
 
         /// <summary>
-        /// Camera follow keyboard input
+        /// Tracks touch drag direction. Intended to be called via event.
         /// </summary>
-        /// <param name="tpea"></param>
-        private void TrackKeyboard()
+        /// <param name="tpea">TouchPad event args providing drag direction.</param>
+        private void TrackTouchDrag(TouchPadEventArgs tpea)
         {
-            if(InGame)
-            {
-                Vector3 dir = Vector3.zero;
+            if (track != TrackMode.Touch)
+                return;
 
-                dir = player.GetComponent<PlayerController>().GetMovement();
+            Vector3 dir = tpea.DragDirection;
 
-                Vector3 target = transform.position + new Vector3(/*dir.x*/0, -dir.y * speedMultiplicator, 0);
-                transform.position = Vector3.Lerp(transform.position, target, 1.0f * Time.deltaTime);
-                ClampCameraPosInField();
-            }
+            Vector3 target = transform.position + new Vector3(dir.x, dir.y, 0f);
+
+            transform.position = Vector3.Lerp(transform.position, target, 0.02f * Time.fixedDeltaTime);
+
+            ClampCameraPosInField();
         }
 
+        #endregion
+
+        #region Helpers
+
+        /// <summary>
+        /// Clamps the camera position inside the ClampField BoxCollider2D bounds,
+        /// accounting for camera orthographic size and screen ratio.
+        /// </summary>
+        private void ClampCameraPosInField()
+        {
+            if (!ClampPosition || ClampField == null || m_camera == null)
+                return;
+
+            camVertSize = m_camera.orthographicSize;
+            camHorSize = camVertSize * ScreenRatio;
+
+            Vector2 halfBoundsSize = ClampField.bounds.size / 2f;
+            halfBoundsSize -= new Vector2(camHorSize, camVertSize);
+
+            Vector3 clampCenter = ClampField.transform.position;
+
+            float maxX = clampCenter.x + halfBoundsSize.x;
+            float minX = clampCenter.x - halfBoundsSize.x;
+            float maxY = clampCenter.y + halfBoundsSize.y;
+            float minY = clampCenter.y - halfBoundsSize.y;
+
+            float clampedX = Mathf.Clamp(transform.position.x, minX, maxX);
+            float clampedY = Mathf.Clamp(transform.position.y, minY, maxY);
+
+            transform.position = new Vector3(clampedX, clampedY, transform.position.z);
+        }
+
+        #endregion
     }
 }

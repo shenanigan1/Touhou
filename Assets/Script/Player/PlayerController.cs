@@ -7,166 +7,145 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
 {
-    public PlayerObj _playerObj;
+    [SerializeField] private PlayerObj playerObj;
 
-    private SpriteRenderer _spriteRenderer;
+    [Header("Movement Settings")]
+    [SerializeField] private float speed = 10f;
+    [SerializeField] private GameObject movementBoundsRect;
 
-    private Transform _transform;
+    [Header("Invincibility Settings")]
+    [SerializeField] private float invincibleDuration = 2f;
+    [SerializeField] private float blinkInterval = 0.2f;
 
-    private Rigidbody2D _rb;
+    [Header("UI Elements")]
+    [SerializeField] private TextMeshProUGUI lifeText;
+    [SerializeField] private TextMeshProUGUI gameTimerText;
 
-    private Color _color = Color.white;
+    private SpriteRenderer spriteRenderer;
+    private Rigidbody2D rb;
+    private Transform playerTransform;
 
-    public GameObject MovementRect;
+    private Vector2 movementInput;
+    private Vector2 movementBoundsMin;
+    private Vector2 movementBoundsMax;
 
-    public TextMeshProUGUI _lifeTxt;
-    public TextMeshProUGUI _gameTimerTxt;
+    private Color spriteColor;
 
-    private Shoot_script _shootScript;
+    private Shoot_script shootScript;
 
-    private Vector2 _movement = new Vector2();
-    private Vector2 _LeftUp = new Vector2();
-    private Vector2 _RightDown = new Vector2();
+    private float gameStartTime;
 
-    private Vector3 _playerSpace = new Vector3();
-
-    private int _startLife = 3;
-
-    [SerializeField] private float _speed = 10;
-    private float InvincibleTime = 2;
-    [SerializeField]private float InvincibleTimeAspect = 0.2f;
-    private float _gameTimerOffset = 0;
-
-    private bool _fire = false;
-    private bool _invicible = false;
-    private bool _transparent = false;
+    private bool isInvincible = false;
+    private bool isFiring = false;
+    private bool blinkToggle = false;
 
     private void Awake()
     {
-        _playerObj.life = _startLife;
-        _shootScript = GetComponent<Shoot_script>();
-        _spriteRenderer = GetComponent<SpriteRenderer>();
-        _rb = GetComponent<Rigidbody2D>();
-        _transform = GetComponent<Transform>();
-        _LeftUp = MovementRect.transform.GetChild(0).position;
-        _RightDown = MovementRect.transform.GetChild(1).position;
+        // Initialize references and data
+        playerTransform = transform;
+        rb = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        shootScript = GetComponent<Shoot_script>();
+
+        // Initialize movement bounds from MovementRect's two children positions
+        movementBoundsMin = movementBoundsRect.transform.GetChild(0).position;
+        movementBoundsMax = movementBoundsRect.transform.GetChild(1).position;
+
+        // Initialize player life
+        playerObj.life = 3;
+
+        spriteColor = spriteRenderer.color;
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        _gameTimerOffset = Time.time;
+        gameStartTime = Time.time;
     }
 
     private void Update()
     {
-        _lifeTxt.text = "Life : " + _playerObj.life;
-        _gameTimerTxt.text = "Timer : " + string.Format("{0:0.0}",Time.time - _gameTimerOffset);
+        // Update UI
+        lifeText.text = $"Life: {playerObj.life}";
+        gameTimerText.text = $"Timer: {(Time.time - gameStartTime):0.0}";
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        VerifMovement();
-        _rb.AddForce(_movement * _speed);
+        Vector2 newPosition = rb.position + movementInput * speed * Time.fixedDeltaTime;
+
+        // Clamp position inside movement bounds
+        float clampedX = Mathf.Clamp(newPosition.x, movementBoundsMin.x, movementBoundsMax.x);
+        float clampedY = Mathf.Clamp(newPosition.y, movementBoundsMin.y, movementBoundsMax.y);
+
+        rb.MovePosition(new Vector2(clampedX, clampedY));
     }
 
-    private void VerifMovement()
-    {
-        if ((_movement.x > 0 && _transform.position.x > _RightDown.x) || (_movement.x < 0 && _transform.position.x < _LeftUp.x))
-        {
-            ReplacePlayerInX();
-            _movement.x = 0;
-        }
-        else if ((_transform.position.x > _RightDown.x) || (_transform.position.x < _LeftUp.x))
-            ReplacePlayerInX();
-
-
-        if ((_movement.y < 0 && _transform.position.y < _RightDown.y) || (_movement.y > 0 && _transform.position.y > _LeftUp.y))
-        {
-            ReplacePlayerInY();
-            _movement.y = 0;
-        }
-        else if((/*_movement.y < 0 &&*/ _transform.position.y < _RightDown.y) || (/*_movement.y > 0 &&*/ _transform.position.y > _LeftUp.y))
-            ReplacePlayerInY();
-    }
-
-    private void ReplacePlayerInX()
-    {
-        _playerSpace.Set(_transform.position.x > _RightDown.x ? _RightDown.x : _LeftUp.x, _transform.position.y, 0);
-        _transform.position = _playerSpace;
-        _rb.velocity = new Vector2(0, _rb.velocity.y);
-
-    }
-
-    private void ReplacePlayerInY()
-    {
-        _playerSpace.Set(_transform.position.x, _transform.position.y < _RightDown.y ? _RightDown.y : _LeftUp.y, 0);
-        _transform.position = _playerSpace;
-        _rb.velocity = new Vector2(_rb.velocity.x, 0);
-
-    }
-
+    /// <summary>
+    /// Callback for movement input.
+    /// </summary>
     public void OnMove(InputAction.CallbackContext context)
     {
-        _movement = context.ReadValue<Vector2>();
+        movementInput = context.ReadValue<Vector2>();
     }
 
+    /// <summary>
+    /// Callback for fire toggle input.
+    /// </summary>
     public void OnFire(InputAction.CallbackContext context)
     {
-        if(context.started && !_invicible)
+        if (context.started && !isInvincible)
         {
-            _fire = !_fire;
-            _shootScript.IsFire = _fire;
+            isFiring = !isFiring;
+            shootScript.IsFire = isFiring;
         }
- 
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if((collision.CompareTag("EnemiesBullet") || collision.CompareTag("Enemy")) && !_invicible)
+        if ((collision.CompareTag("EnemiesBullet") || collision.CompareTag("Enemy")) && !isInvincible)
         {
-            _playerObj.life--;
-            _shootScript.ResetBall();
-            _shootScript.ResetSpeed();
-            StartCoroutine(Invincible());
-            IsDead();
+            playerObj.life--;
+            shootScript.ResetBall();
+            shootScript.ResetSpeed();
+            StartCoroutine(InvincibilityRoutine());
+            CheckDeath();
         }
     }
 
-    private void IsDead()
+    private void CheckDeath()
     {
-        if (_playerObj.life <= 0)
+        if (playerObj.life <= 0)
         {
-            _playerObj.timer = Time.time - _gameTimerOffset;
+            playerObj.timer = Time.time - gameStartTime;
             gameObject.SetActive(false);
-            SceneManager.LoadScene(2);
+            SceneManager.LoadScene(2); // Assuming scene index 2 is Game Over or next scene
         }
     }
-    private IEnumerator Invincible()
-    {
-        _invicible = true;
-        _fire = false;
-        _shootScript.IsFire = _fire;
-        StartCoroutine(InvincibleAspect());
-        yield return new WaitForSeconds(InvincibleTime);
-        _invicible = false;
-    }
 
-    private IEnumerator InvincibleAspect()
+    private IEnumerator InvincibilityRoutine()
     {
-        while(_invicible) 
+        isInvincible = true;
+        isFiring = false;
+        shootScript.IsFire = false;
+
+        float elapsed = 0f;
+        while (elapsed < invincibleDuration)
         {
-            yield return new WaitForSeconds(InvincibleTimeAspect);
-            _color.a = _transparent ? 1 : 0.1f;
-            _transparent = !_transparent;
-            _spriteRenderer.color = _color;
+            blinkToggle = !blinkToggle;
+            spriteColor.a = blinkToggle ? 0.1f : 1f;
+            spriteRenderer.color = spriteColor;
+
+            yield return new WaitForSeconds(blinkInterval);
+            elapsed += blinkInterval;
         }
-        _color.a = 1;
-        _transparent = false;
-        _spriteRenderer.color = _color;
+
+        // Reset sprite visibility and invincibility
+        spriteColor.a = 1f;
+        spriteRenderer.color = spriteColor;
+        isInvincible = false;
     }
 
-    public Vector2 GetMovement() => _movement;
+    public Vector2 GetMovement() => movementInput;
 
-    public void AddLife(int add = 1) => _playerObj.life += add;
+    public void AddLife(int amount = 1) => playerObj.life += amount;
 }

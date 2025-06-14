@@ -3,196 +3,268 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// Responsible for spawning enemies in waves and managing wave progression.
+/// </summary>
 public class EnemiesSpawner : MonoBehaviour
 {
-    public PlayerObj _playerObj;
+    public PlayerObj PlayerObj;
 
-    public static EnemiesSpawner Instance;
+    public static EnemiesSpawner Instance { get; private set; }
 
-    public GameObject SpawnRect;
-    public GameObject FightRect;
+    [Header("Spawn Areas")]
+    [SerializeField] private GameObject spawnRect;
+    [SerializeField] private GameObject fightRect;
 
-    public AnimationCurve _numberOfEnemy1PerWave;
-    public AnimationCurve _numberOfEnemy2PerWave;
-    public AnimationCurve _numberOfEnemy3PerWave;
+    [Header("Enemy Spawn Curves")]
+    [SerializeField] private AnimationCurve numberOfEnemy1PerWave;
+    [SerializeField] private AnimationCurve numberOfEnemy2PerWave;
+    [SerializeField] private AnimationCurve numberOfEnemy3PerWave;
 
-    private EnemyController _currentEnemy;
+    [Header("UI Elements")]
+    [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI waveText;
 
-    private Vector3 UpLeft = new();
-    private Vector3 DownRight = new();
+    [Header("Wave Settings")]
+    [SerializeField] private float timeInWave = 10f;
+    [SerializeField] private float timeBetweenWaves = 5f;
+    [SerializeField] private int maxEnemiesSpawnAtOnce = 10;
 
-    private Vector3 RandPos = new Vector3 (0, 0, 0);
+    // Internal tracking
+    private readonly int[] enemiesRemainingPerType = new int[3];
+    private List<int> enemiesCanBeSpawned = new List<int>();
+    private int activeEnemyCount = 0;
+    private int enemiesToSpawnThisBatch = 0;
+    private bool isSpawningNewWave = false;
+    private float waveTimer;
 
-    private float _timerInWave = 0;
-    private float _timeInWave = 10;
-    private float _timeBetweenWave = 5;
-
-    [SerializeField] private int numberOfObjectActive = 0;
-    private int newActive = 0;
-    [SerializeField] private int[] numberOfEnemiesInWave;
-    [SerializeField] private int numberOfEnemiesInWaves = 0;
-
-    private bool _inNewWave = false;
-
-    public TextMeshProUGUI _scoreTxt;
-    public TextMeshProUGUI _waveTxt;
-
-    [SerializeField] private List<int> _EnemiesCanBeInvoke = new List<int>(); 
+    private Vector3 upLeft;
+    private Vector3 downRight;
+    private Vector3 randomPosition;
 
     private void Awake()
     {
-        if (Instance == null) { Instance = this; }
-        numberOfEnemiesInWave = new int[3] { 0, 0, 0 };
-        _playerObj.wave = 0;
-        _playerObj.score = 0;
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject); // Singleton safety
+
+        ResetWaveData();
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void ResetWaveData()
     {
+        PlayerObj.wave = 0;
+        PlayerObj.score = 0;
+        activeEnemyCount = 0;
+        isSpawningNewWave = false;
+        ClearEnemyCounters();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void ClearEnemyCounters()
     {
+        for (int i = 0; i < enemiesRemainingPerType.Length; i++)
+            enemiesRemainingPerType[i] = 0;
+        enemiesCanBeSpawned.Clear();
+    }
 
-        if(numberOfObjectActive <= 0 && numberOfEnemiesInWaves <= 0 && !_inNewWave)
+    private void Update()
+    {
+        UpdateUI();
+
+        // When all active enemies and queued enemies are zero and not spawning, start a new wave
+        if (activeEnemyCount <= 0 && TotalEnemiesRemaining() <= 0 && !isSpawningNewWave)
         {
-            numberOfObjectActive = 0;
-            numberOfEnemiesInWaves = 0;
-            StartCoroutine(NewWave());
+            StartCoroutine(NewWaveCoroutine());
         }
-        else if(numberOfObjectActive <= 1 /*|| _timerInWave < Time.time*/) 
+        else if (activeEnemyCount <= 1)
         {
             ContinueWave();
         }
-
-        _scoreTxt.text = "Score : " + _playerObj.score;
-        _waveTxt.text = "Wave : " + _playerObj.wave;
     }
 
-    private IEnumerator NewWave()
+    private void UpdateUI()
     {
-        _inNewWave = true;
-
-        yield return new WaitForSecondsRealtime(_timeBetweenWave);
-
-        _playerObj.wave++;
-        _EnemiesCanBeInvoke.Clear();
-        for (int i = 0; i < numberOfEnemiesInWave.Length; i++)
-        {
-            switch(i)
-            {
-                case 0:
-                    numberOfEnemiesInWave[i] = Mathf.CeilToInt(_numberOfEnemy1PerWave.Evaluate(_playerObj.wave));
-                    _EnemiesCanBeInvoke.Add(i);
-                    break; 
-                case 1:
-                    numberOfEnemiesInWave[i] = Mathf.CeilToInt(_numberOfEnemy2PerWave.Evaluate(_playerObj.wave));
-                    _EnemiesCanBeInvoke.Add(i);
-                    break; 
-                case 2:
-                    numberOfEnemiesInWave[i] = Mathf.CeilToInt(_numberOfEnemy3PerWave.Evaluate(_playerObj.wave));
-                    _EnemiesCanBeInvoke.Add(i);
-                    break;
-            }
-        }
-        numberOfEnemiesInWaves = Mathf.CeilToInt(_numberOfEnemy1PerWave.Evaluate(_playerObj.wave)) + Mathf.CeilToInt(_numberOfEnemy2PerWave.Evaluate(_playerObj.wave)) + Mathf.CeilToInt(_numberOfEnemy3PerWave.Evaluate(_playerObj.wave));
-        _inNewWave = false;
+        scoreText.text = $"Score : {PlayerObj.score}";
+        waveText.text = $"Wave : {PlayerObj.wave}";
     }
 
+    /// <summary>
+    /// Starts a new wave with updated enemy counts based on the animation curves.
+    /// </summary>
+    private IEnumerator NewWaveCoroutine()
+    {
+        isSpawningNewWave = true;
+
+        yield return new WaitForSecondsRealtime(timeBetweenWaves);
+
+        PlayerObj.wave++;
+
+        ClearEnemyCounters();
+
+        // Calculate enemies per type for this wave
+        enemiesRemainingPerType[0] = Mathf.CeilToInt(numberOfEnemy1PerWave.Evaluate(PlayerObj.wave));
+        enemiesRemainingPerType[1] = Mathf.CeilToInt(numberOfEnemy2PerWave.Evaluate(PlayerObj.wave));
+        enemiesRemainingPerType[2] = Mathf.CeilToInt(numberOfEnemy3PerWave.Evaluate(PlayerObj.wave));
+
+        // Register types that can be spawned (with at least one enemy)
+        for (int i = 0; i < enemiesRemainingPerType.Length; i++)
+        {
+            if (enemiesRemainingPerType[i] > 0)
+                enemiesCanBeSpawned.Add(i);
+        }
+
+        isSpawningNewWave = false;
+    }
+
+    /// <summary>
+    /// Continues spawning enemies during the current wave in batches.
+    /// </summary>
     private void ContinueWave()
     {
-        newActive = 0;
-        if (numberOfEnemiesInWaves >= 10)
-        {
-            numberOfEnemiesInWaves -= 10;
-            numberOfObjectActive += 10;
-            newActive += 10;
-        }
-        else if(numberOfEnemiesInWaves < 10 && numberOfEnemiesInWaves > 0 ) 
-        {
-            numberOfObjectActive += numberOfEnemiesInWaves;
-            newActive += numberOfEnemiesInWaves;
-            numberOfEnemiesInWaves = 0;
-        }
-        else 
-        {
+        enemiesToSpawnThisBatch = 0;
+
+        int totalEnemiesLeft = TotalEnemiesRemaining();
+
+        if (totalEnemiesLeft <= 0)
             return;
-        }
 
-        for (int i = 0; i < newActive; i++)
+        if (totalEnemiesLeft >= maxEnemiesSpawnAtOnce)
         {
-            SpawnEnemy();
-        }
-        _timerInWave = Time.time + _timeInWave;
-    }
-
-    private void GetRandPosInRect(GameObject rect)
-    {
-        UpLeft = rect.transform.GetChild(0).position;
-        DownRight = rect.transform.GetChild(1).position;
-
-        RandPos.x = Random.Range(UpLeft.x, DownRight.x);
-        RandPos.y = Random.Range(DownRight.y, UpLeft.y);
-    }
-
-    private void SpawnEnemy()
-    {
-        GetRandPosInRect(SpawnRect);
-        _currentEnemy = PoolController.Instance.GetNew(GetRandomEnemy(), RandPos)?.GetComponent<EnemyController>();
-
-        if (_currentEnemy != null)
-        {
-            GetRandPosInRect(FightRect);
-            if (_currentEnemy._type != Type.Boss)
-                _currentEnemy.SetTargetPosition = RandPos;
-            else
-                _currentEnemy.SetTargetPosition = new Vector3(-2.5f, 3.8f, 0);
-
+            enemiesToSpawnThisBatch = maxEnemiesSpawnAtOnce;
         }
         else
         {
-            numberOfObjectActive -= 1;
+            enemiesToSpawnThisBatch = totalEnemiesLeft;
         }
 
+        DecrementEnemiesRemaining(enemiesToSpawnThisBatch);
 
+        activeEnemyCount += enemiesToSpawnThisBatch;
 
+        for (int i = 0; i < enemiesToSpawnThisBatch; i++)
+        {
+            SpawnEnemy();
+        }
+
+        waveTimer = Time.time + timeInWave;
     }
 
-    private Type GetRandomEnemy()
+    private int TotalEnemiesRemaining()
     {
-        if (_EnemiesCanBeInvoke.Count > 0)
+        int total = 0;
+        foreach (var count in enemiesRemainingPerType)
+            total += count;
+        return total;
+    }
+
+    /// <summary>
+    /// Decreases enemies remaining for the wave by given count.
+    /// Distributes decreases proportionally or simply by priority.
+    /// </summary>
+    private void DecrementEnemiesRemaining(int count)
+    {
+        // Simple distribution: reduce from each type until count exhausted
+        while (count > 0 && enemiesCanBeSpawned.Count > 0)
         {
-            int rand = Random.Range(0, _EnemiesCanBeInvoke.Count);
-            if (numberOfEnemiesInWave[_EnemiesCanBeInvoke[rand]] > 0)
+            int randomIndex = Random.Range(0, enemiesCanBeSpawned.Count);
+            int enemyTypeIndex = enemiesCanBeSpawned[randomIndex];
+
+            if (enemiesRemainingPerType[enemyTypeIndex] > 0)
             {
-                numberOfEnemiesInWave[_EnemiesCanBeInvoke[rand]]--;
-                return GetEnemy(_EnemiesCanBeInvoke[rand]);
+                enemiesRemainingPerType[enemyTypeIndex]--;
+                count--;
+
+                if (enemiesRemainingPerType[enemyTypeIndex] <= 0)
+                {
+                    enemiesCanBeSpawned.RemoveAt(randomIndex);
+                }
             }
             else
             {
-                _EnemiesCanBeInvoke.Remove(_EnemiesCanBeInvoke[rand]);
-                return GetRandomEnemy();
+                enemiesCanBeSpawned.RemoveAt(randomIndex);
             }
         }
-        return 0;
     }
 
-    private Type GetEnemy(int i )
+    /// <summary>
+    /// Spawns a single enemy at a random spawn position.
+    /// </summary>
+    private void SpawnEnemy()
     {
-        switch(i) 
+        GetRandomPositionInRect(spawnRect);
+
+        GameObject enemyGO = PoolController.Instance.GetNew(GetRandomEnemyType(), randomPosition);
+        EnemyController enemy = enemyGO?.GetComponent<EnemyController>();
+
+        if (enemy != null)
         {
-            case 0:
-                return Type.Ennemies1;
-            case 1:
-                return Type.Ennemies2;
-            case 2:
-                return Type.Boss;
+            GetRandomPositionInRect(fightRect);
+
+            if (enemy._type != Type.Boss)
+                enemy.SetTargetPosition = randomPosition;
+            else
+                enemy.SetTargetPosition = new Vector3(-2.5f, 3.8f, 0);
         }
-        return Type.Ennemies1;
+        else
+        {
+            // Failed to spawn enemy, decrement active count
+            activeEnemyCount = Mathf.Max(0, activeEnemyCount - 1);
+        }
     }
 
-    public void EnemyDead() => numberOfObjectActive -= 1;
-    public void AddScore(int score) => _playerObj.score += score;
+    /// <summary>
+    /// Picks a random enemy type from the available enemies to spawn.
+    /// </summary>
+    /// <returns>The Type enum for the enemy.</returns>
+    private Type GetRandomEnemyType()
+    {
+        if (enemiesCanBeSpawned.Count == 0)
+            return Type.Ennemies1; // Default fallback
+
+        int randomIndex = Random.Range(0, enemiesCanBeSpawned.Count);
+        int enemyTypeIndex = enemiesCanBeSpawned[randomIndex];
+
+        return GetEnemyTypeFromIndex(enemyTypeIndex);
+    }
+
+    private static Type GetEnemyTypeFromIndex(int index)
+    {
+        return index switch
+        {
+            0 => Type.Ennemies1,
+            1 => Type.Ennemies2,
+            2 => Type.Boss,
+            _ => Type.Ennemies1,
+        };
+    }
+
+    /// <summary>
+    /// Gets a random position inside the rectangle defined by rect's first two children (corners).
+    /// </summary>
+    private void GetRandomPositionInRect(GameObject rect)
+    {
+        upLeft = rect.transform.GetChild(0).position;
+        downRight = rect.transform.GetChild(1).position;
+
+        randomPosition.x = Random.Range(upLeft.x, downRight.x);
+        randomPosition.y = Random.Range(downRight.y, upLeft.y);
+        randomPosition.z = 0;
+    }
+
+    /// <summary>
+    /// Should be called by enemy when it dies to update active enemy count.
+    /// </summary>
+    public void NotifyEnemyDeath()
+    {
+        activeEnemyCount = Mathf.Max(0, activeEnemyCount - 1);
+    }
+
+    /// <summary>
+    /// Adds score to player.
+    /// </summary>
+    public void AddScore(int score)
+    {
+        PlayerObj.score += score;
+    }
 }

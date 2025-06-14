@@ -1,18 +1,17 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class MoveParralax : MonoBehaviour
+/// <summary>
+/// Simple script to move the GameObject upwards at a constant speed,
+/// typically used for parallax background layers.
+/// </summary>
+public class MoveParallax : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
+    [SerializeField]
+    private float speed = 10f;
 
-    // Update is called once per frame
     void Update()
     {
-        transform.position += new Vector3(0, 10, 0) * Time.deltaTime;
+        // Move upward along Y-axis at 'speed' units per second
+        transform.position += Vector3.up * speed * Time.deltaTime;
     }
 }
